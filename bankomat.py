@@ -1,7 +1,7 @@
 import string
 dane = open('dane.txt')
 
-
+#xDDDDDDDDDDD
 def wczytaj_dane(linia):
     linia = string.split(linia, ',')
     nr = linia[0]
