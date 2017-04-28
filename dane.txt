@@ -1,0 +1,6 @@
+1,2314231,Hanys,1234,1223.23,income;
+2,2356644,Kunegunda,4829,123456,income;
+3,2343443,Grzegorz,3923,333333,outcome;
+4,449499,Zbigniew,2332,323.23,income;
+5,2356333,Kunegunda,4829,456,outcome;
+6,2456333,Kunegunda,4888,3000,outcome;
