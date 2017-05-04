@@ -1,6 +1,8 @@
 import string
+import hashlib
 dane = open('dane.txt')
-
+raport = open('raport.txt', 'w')
+piny = open('piny.txt', 'w')
 
 def wczytaj_dane(linia):
     linia = string.split(linia, ',')
@@ -13,8 +15,26 @@ def wczytaj_dane(linia):
 
     return nr, epoch, login, pin, kwota, operacja
 
+
+
+def zaszyfruj_pin(login, pin):
+    pin256 = hashlib.sha256(str(pin))
+    hex_pin = pin256.hexdigest()
+    zaszyfrowane[login] = hex_pin
+
+def zapisz_zaszyfrowane(zaszyfrowane):
+    for key in zaszyfrowane:
+        piny.write(str(key) + ',' + str(zaszyfrowane[key]) + '\n')
+
+def generuj_raport(baza):
+    raport.write('\n\n\n\n')
+    for key in baza:
+        raport.write(str(baza[key])+'\n')
+
+
+
 class Klient:
-    def __init__(self, login, pin, stan_konta = 0):
+    def __init__(self, login, pin, stan_konta = 1000):
         self.login = login
         self.pin = pin
         self.stan_konta = stan_konta
@@ -54,22 +74,43 @@ def nowy_klient(login, pin):
         baza[login] = Klient(login,pin)
     else:
         print "Przekroczono limit uzytkownikow"
+        #pelna_baza = True
+        #return pelna_baza
 
 baza = {}
+liczba_operacji = 0
+zaszyfrowane = {}
 
 for line in dane:
     nr, epoch, login, pin, kwota, operacja = wczytaj_dane(line);
     print login, operacja, kwota
+
     if login in baza:
         if logowanie(login, pin):
             baza[login].zmien_stan_konta(kwota,operacja)
+            liczba_operacji += 1
     else:
         nowy_klient(login, pin)
-        baza[login].zmien_stan_konta(kwota,operacja)
+        try:
+            baza[login].zmien_stan_konta(kwota,operacja)
+            liczba_operacji += 1
+        except KeyError:
+            liczba_operacji -= 1
+
+
+
+
+    zaszyfruj_pin(login, pin)
+
+    if liczba_operacji == 100:
+        generuj_raport(baza)
+        liczba_operacji = 0
+
+zapisz_zaszyfrowane(zaszyfrowane)
 
 dane.close()
-
+raport.close()
+piny.close()
 
 for key in baza:
     print baza[key]
-print baza
