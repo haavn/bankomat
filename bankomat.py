@@ -96,7 +96,7 @@ def nowy_klient(login, pin):
         return False
 
 ###bez numeru
-def wczytaj_dane(linia):
+def wczytaj_dane_2(linia):
     linia = string.split(linia, ',')
     epoch = linia[0]
     login = linia[1]
@@ -112,7 +112,7 @@ def wczytaj_historie(baza):
     liczba_operacji = 0
     historia_transakcji = open('baza_transakcji.txt') 
     for line in historia_transakcji:
-        epoch, login, pin, kwota, operacja = wczytaj_dane(line);
+        epoch, login, pin, kwota, operacja = wczytaj_dane_2(line);
         #print login, operacja, kwota
 
         if login in baza:
