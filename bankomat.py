@@ -1,49 +1,48 @@
 import string
 import hashlib
-dane = open('dane.txt')
-raport = open('raport.txt', 'w')
-piny = open('piny.txt', 'w')
+dane = open('dane.csv')
+
 
 def wczytaj_dane(linia):
     linia = string.split(linia, ',')
-    nr = linia[0]
-    epoch = linia[1]
+    epoch = linia[0]
+    nr = linia[1]
     login = linia[2]
     pin = linia[3]
     kwota = float(linia[4])
     operacja = string.rstrip(linia[5], ';\n')
 
-    return nr, epoch, login, pin, kwota, operacja
+    return epoch, nr, login, pin, kwota, operacja
 
 
 
-def zaszyfruj_pin(login, pin):
+def zaszyfruj_pin(pin):
     pin256 = hashlib.sha256(str(pin))
     hex_pin = pin256.hexdigest()
-    zaszyfrowane[login] = hex_pin
+    return hex_pin
 
-def zapisz_zaszyfrowane(zaszyfrowane):
-    for key in zaszyfrowane:
-        piny.write(str(key) + ',' + str(zaszyfrowane[key]) + '\n')
 
-def generuj_raport(baza):
-    raport.write('\n\n\n\n')
+# generuje raport o stanie kont wszystkich klientow po wykonaniu 100 operacji
+def generuj_raport(baza, nr_operacji):
+    nazwa_pliku = str(nr_operacji-100+1) + '-' + str(nr_operacji) + '.txt'
+    raport = open(nazwa_pliku, 'w')
     for key in baza:
         raport.write(str(baza[key])+'\n')
-
+    raport.close()
+    print "GENERUJE RAPORT: " + nazwa_pliku
 
 
 class Klient:
     def __init__(self, login, pin, stan_konta = 1000):
         self.login = login
-        self.pin = pin
+        self.pin = zaszyfruj_pin(pin)
         self.stan_konta = stan_konta
         self.proby_logowania = 0
         self.konto_zablokowane = False
 
     #__str__ wywoluje sie przy uzyciu print Klient
     def __str__(self):
-        return "Login: %s; pin: %s; stan konta: %r;" % (self.login,self.pin,self.stan_konta)
+        return "%s,%r;" % (self.login, self.stan_konta)
 
     def zmien_stan_konta(self,kwota,operacja):
         if operacja == 'income':
@@ -52,12 +51,13 @@ class Klient:
             if self.stan_konta >= kwota:
                 self.stan_konta -= kwota
             else:
-                print "za malo srodkow na koncie"
+                pass
+                #print "za malo srodkow na koncie"
         else:
              print "niepoprawna operacja"
 
 def logowanie(login, pin):
-    if pin == baza[login].pin and not baza[login].konto_zablokowane:
+    if zaszyfruj_pin(pin) == baza[login].pin and not baza[login].konto_zablokowane:
         baza[login].proby_logowania = 0
         return True
     else:
@@ -72,45 +72,41 @@ def logowanie(login, pin):
 def nowy_klient(login, pin):
     if len(baza) < 100:
         baza[login] = Klient(login,pin)
+        return True
     else:
-        print "Przekroczono limit uzytkownikow"
-        #pelna_baza = True
-        #return pelna_baza
+        #print "Przekroczono limit uzytkownikow"
+        return False
+
 
 baza = {}
 liczba_operacji = 0
-zaszyfrowane = {}
 
+
+#glowna petla progrmau
 for line in dane:
-    nr, epoch, login, pin, kwota, operacja = wczytaj_dane(line);
-    print login, operacja, kwota
+    epoch, nr, login, pin, kwota, operacja = wczytaj_dane(line);
+    #print login, operacja, kwota
 
     if login in baza:
         if logowanie(login, pin):
             baza[login].zmien_stan_konta(kwota,operacja)
             liczba_operacji += 1
+        else:
+            # niepoprawne logowanie
+            liczba_operacji += 1
     else:
-        nowy_klient(login, pin)
-        try:
+        if nowy_klient(login, pin):
             baza[login].zmien_stan_konta(kwota,operacja)
             liczba_operacji += 1
-        except KeyError:
-            liczba_operacji -= 1
+        else:
+            # za duzo klientow w bazie
+            liczba_operacji += 1
 
 
+    #print liczba_operacji, login, operacja, kwota
 
+    if liczba_operacji % 100 == 0:
+        generuj_raport(baza, liczba_operacji)
 
-    zaszyfruj_pin(login, pin)
-
-    if liczba_operacji == 100:
-        generuj_raport(baza)
-        liczba_operacji = 0
-
-zapisz_zaszyfrowane(zaszyfrowane)
 
 dane.close()
-raport.close()
-piny.close()
-
-for key in baza:
-    print baza[key]
