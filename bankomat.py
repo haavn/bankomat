@@ -2,7 +2,9 @@ import string
 import hashlib
 import time
 
+# deklaracje funkcji---------------------------------------------------------
 
+# wczytuje dane z pliku
 def wczytaj_dane(linia):
     linia = string.split(linia, ',')
     epoch = linia[0]
@@ -14,6 +16,16 @@ def wczytaj_dane(linia):
 
     return epoch, nr, login, pin, kwota, operacja
 
+# bez numeru, uzywane w trybie klienta
+def wczytaj_dane_2(linia):
+    linia = string.split(linia, ',')
+    epoch = linia[0]
+    login = linia[1]
+    pin = linia[2]
+    kwota = float(linia[3])
+    operacja = string.rstrip(linia[4], ';\n')
+
+    return epoch, login, pin, kwota, operacja
 
 
 def zaszyfruj_pin(pin):
@@ -22,56 +34,15 @@ def zaszyfruj_pin(pin):
     return hex_pin
 
 
-# generuje raport o stanie kont wszystkich klientow po wykonaniu 100 operacji
+# generuje raport o stanie kont wszystkich klientow
+# nr_operacji uzywany jest do nazwy pliku
 def generuj_raport(baza, nr_operacji):
     nazwa_pliku = str(nr_operacji-100+1) + '-' + str(nr_operacji) + '.txt'
     raport = open(nazwa_pliku, 'w')
     for key in baza:
-        raport.write(str(baza[key])+'\n')
+        raport.write(str(baza[key])+'\n') # str(baza[key]) wywoluje metode __str__ klasy Klient
     raport.close()
     print "GENERUJE RAPORT: " + nazwa_pliku
-
-
-class Klient:
-    def __init__(self, login, pin, stan_konta = 1000):
-        self.login = login
-        self.pin = zaszyfruj_pin(pin)
-        self.stan_konta = stan_konta
-        self.proby_logowania = 0
-        self.konto_zablokowane = False
-
-    #__str__ wywoluje sie przy uzyciu print Klient
-    def __str__(self):
-        return "%s,%r;" % (self.login, self.stan_konta)
-
-    def zmien_stan_konta(self,kwota,operacja):
-        if operacja == 'income':
-            self.stan_konta += kwota
-            
-        elif operacja == 'outcome':
-            if self.stan_konta >= kwota:
-                self.stan_konta -= kwota
-                
-            else:
-                pass
-                #print "za malo srodkow na koncie"
-        else:
-            print "niepoprawna operacja"
-
-    def zmien_stan_konta_2(self,kwota,operacja):
-        if operacja == 'income':
-            self.stan_konta += kwota
-            return time.time()
-        elif operacja == 'outcome':
-            if self.stan_konta >= kwota:
-                self.stan_konta -= kwota
-                return time.time()
-            else:              
-                print "za malo srodkow na koncie"
-                return 0
-        else:
-            print "niepoprawna operacja"
-            return 0
 
 def logowanie(login, pin):
     if zaszyfruj_pin(pin) == baza[login].pin and not baza[login].konto_zablokowane:
@@ -95,25 +66,14 @@ def nowy_klient(login, pin):
         #print "Przekroczono limit uzytkownikow"
         return False
 
-###bez numeru
-def wczytaj_dane_2(linia):
-    linia = string.split(linia, ',')
-    epoch = linia[0]
-    login = linia[1]
-    pin = linia[2]
-    kwota = float(linia[3])
-    operacja = string.rstrip(linia[4], ';\n')
-
-    return epoch, login, pin, kwota, operacja
 
 
-
+# uzywane w trybie klienta, 
 def wczytaj_historie(baza):
     liczba_operacji = 0
     historia_transakcji = open('baza_transakcji.txt') 
     for line in historia_transakcji:
         epoch, login, pin, kwota, operacja = wczytaj_dane_2(line);
-        #print login, operacja, kwota
 
         if login in baza:
             if logowanie(login, pin):
@@ -129,9 +89,6 @@ def wczytaj_historie(baza):
             else:
                 # za duzo klientow w bazie
                 liczba_operacji += 1
-
-
-        #print liczba_operacji, login, operacja, kwota
 
         if liczba_operacji % 100 == 0:
             generuj_raport(baza, liczba_operacji)
@@ -139,8 +96,54 @@ def wczytaj_historie(baza):
 
     historia_transakcji.close()
 
+#------------------------------------------------------------------------------------
 
-baza = {}
+class Klient:
+    def __init__(self, login, pin, stan_konta = 1000):
+        self.login = login
+        self.pin = zaszyfruj_pin(pin)
+        self.stan_konta = stan_konta
+        self.proby_logowania = 0
+        self.konto_zablokowane = False
+
+    #__str__ wywoluje sie przy konwersji obiektu na str np print Klient lub str(baza[key])
+    def __str__(self):
+        return "%s,%r;" % (self.login, self.stan_konta)
+
+    def zmien_stan_konta(self,kwota,operacja):
+        if operacja == 'income':
+            self.stan_konta += kwota
+            
+        elif operacja == 'outcome':
+            if self.stan_konta >= kwota:
+                self.stan_konta -= kwota
+                
+            else:
+                pass
+                #print "za malo srodkow na koncie"
+        else:
+            print "niepoprawna operacja"
+    
+    # uzywane w trybie klienta
+    def zmien_stan_konta_2(self,kwota,operacja):
+        if operacja == 'income':
+            self.stan_konta += kwota
+            return time.time()
+        elif operacja == 'outcome':
+            if self.stan_konta >= kwota:
+                self.stan_konta -= kwota
+                return time.time()
+            else:              
+                print "za malo srodkow na koncie"
+                return 0
+        else:
+            print "niepoprawna operacja"
+            return 0
+
+##########################################################################################################
+
+
+baza = {}   # 'baza danych' jako pythonowy slownik, klucze -> nazwy klientow, elementy slownika to instancje klasy Klient
 liczba_operacji = 0
 
 print "WYBIERZ TRYB PRACY BANKOMATU"
@@ -148,15 +151,15 @@ print "TRYB TESTOWY -> WYBIERZ 1"
 print "TRYB KLIENTA -> WYBIERZ 2"
 tryb_pracy = int(raw_input("> "))
 
-if tryb_pracy == 1:
+# tryb testowy
+if tryb_pracy == 1:     
     dane = open('dane.csv')
     print "START TESTOW"
     #glowna petla progrmau
     for line in dane:
         epoch, nr, login, pin, kwota, operacja = wczytaj_dane(line);
-        #print login, operacja, kwota
 
-        if login in baza:
+        if login in baza: # jesli uzytkownik jest w bazie, wykonaj logowanie, a pozniej operacje
             if logowanie(login, pin):
                 baza[login].zmien_stan_konta(kwota,operacja)
                 liczba_operacji += 1
@@ -164,25 +167,24 @@ if tryb_pracy == 1:
                 # niepoprawne logowanie
                 liczba_operacji += 1
         else:
-            if nowy_klient(login, pin):
+            if nowy_klient(login, pin): # tworzymy nowego klienta, jesli sie uda (baza nie jest zapelniona), wykonujemy operacje
                 baza[login].zmien_stan_konta(kwota,operacja)
                 liczba_operacji += 1
             else:
                 # za duzo klientow w bazie
                 liczba_operacji += 1
 
-
-        #print liczba_operacji, login, operacja, kwota
-
+        # generuje raport co 100 operacji
         if liczba_operacji % 100 == 0:
             generuj_raport(baza, liczba_operacji)
 
 
     dane.close()
 
+# tryb klienta
 elif tryb_pracy == 2:
 
-    wczytaj_historie(baza)
+    wczytaj_historie(baza) #
     historia_transakcji = open('baza_transakcji.txt', 'a')
 
     while(True):
